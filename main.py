@@ -79,16 +79,12 @@ class Stream():
         subprocess.Popen([f"ffmpeg -i {str(self.file_path)+input_file} -c:v libx264 -preset medium -b:v 3000k -maxrate 3000k -bufsize 6000k -vf \"scale=1280:-1,format=yuv420p\" -g 50 -c:a aac -b:a 128k -ac 2 -ar 44100 {str(self.file_path)+input_file}.flv"], shell=True)
 
     def start_from_youtube(self, yt_link):
-        # yt_source = f"$(yt-dlp -f b --get-url {yt_link})"
-        # subprocess.Popen([f"ffmpeg -re -i {yt_source} -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
         yt_source = subprocess.check_output(f"yt-dlp --get-url {yt_link}", shell=True, text=True).split("\n")
         subprocess.Popen([f"ffmpeg -re -i \"{yt_source[0]}\" -i \"{yt_source[1]}\" -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
         print(yt_source)
 
 
     def youtube_start_from(self, yt_link, time_to_start):
-        # yt_source = f"$(yt-dlp -f b --get-url {yt_link})"
-        # subprocess.Popen([f"ffmpeg -re -ss {time_to_start} -i {yt_source} -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
         yt_source = subprocess.check_output(f"yt-dlp --get-url {yt_link}", shell=True, text=True).split("\n")
         subprocess.Popen([f"ffmpeg -re -ss {time_to_start} -i \"{yt_source[0]}\" -ss {time_to_start} -i \"{yt_source[1]}\"  -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
         print(yt_source)
@@ -119,10 +115,7 @@ class Stream():
 
         self.ass_to_srt(input_file)
 
-        # subprocess.Popen([f"ffmpeg -itsoffset {seek_to[:-2]}:{int(seek_to[-2:])+int(sub_delay)} -i {self.path}/subtitles/{input_file}.srt -c copy {self.path}/subtitles/subtitles_delayed.srt -y"], shell=True)
         subprocess.Popen([f"ffmpeg -itsoffset {sub_delay} -i {self.path}/subtitles/{input_file}.srt -c copy {self.path}/subtitles/subtitles_delayed.srt -y"], shell=True)
-
-        # print(self.time_to_seconds(seek_to))
 
         subprocess.Popen([f"iconv -f utf-8 -t utf-8 -c {self.path}/subtitles/subtitles_delayed.srt > {self.path}/subtitles/subtitles_delayed.srt"], shell=True) # clean subtitles from non utf-8 characters
 
@@ -130,13 +123,6 @@ class Stream():
 
         subprocess.Popen([f"ffmpeg -re -ss {seek_to} -i {str(self.file_path)+input_file}.* -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -vf subtitles={self.path}/subtitles/subtitles_fixed.srt -f flv rtmp://bom01.contribute.live-video.net/app/{self.streamkey}"], shell=True)
 
-        # subprocess.Popen([f"ffmpeg -itsoffset {sub_delay} -i {self.path}/subtitles/{input_file}.srt -c copy {self.path}/subtitles/subtitles_delayed.srt -y"], shell=True)
-
-        # subprocess.Popen([f"subliminal edit -s {self.path}/subtitles/subtitles_delayed.srt -c {seek_to} -o {self.path}/subtitles/subtitles_delayed.srt"], shell=True)
-
-        # subprocess.Popen([f"ffmpeg -re -ss {seek_to} -i {str(self.file_path)+input_file}.mkv -i {self.path}/subtitles/test1.srt -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://bom01.contribute.live-video.net/app/{self.streamkey}"], shell=True)
-
-            
     def update_json(self):
         today = datetime.date.today()
         formatted_date = today.strftime("%d/%m/%Y")
@@ -173,15 +159,6 @@ class Stream():
 
 
 stream = Stream()
-# stream.start_sub_delay("test1", "-00:18")
-
-
-# stream.start_sub_delay("test1", "-90")
-# stream.start_from("11:00", "file.flv")
-# stream.start_from_youtube("https://www.youtube.com/watch?v=BJ-VvGyQxho")
-# stream.encode("test1.*")
-# stream.start_flv("file.flv")
-# stream.kill()
 
 class Bot(commands.Bot):
 
@@ -194,11 +171,7 @@ class Bot(commands.Bot):
         print(f'User id is | {self.user_id}')
 
     async def event_message(self, message):
-
-
         whitelist = [channel_name]
-
-
         msg = message.content.split()
         # print(msg)
         if message.echo or (message.author.name not in whitelist):
@@ -236,7 +209,6 @@ class Bot(commands.Bot):
             
         elif "!yt" in msg: # start youtube
             await bot.connected_channels[0].send('BOT: Opening Youtube!')
-            # self.t1 = time.time()
             stream.kill()
             stream.paused = True
             if len(msg)==2:
@@ -263,7 +235,6 @@ class Bot(commands.Bot):
             stream.kill()
 
         elif "!help" in msg: # help
-            # await bot.connected_channels[0].send('BOT: its simple, dummy!')
             await bot.connected_channels[0].send('BOT: (!start or !s) {file name}')
             await bot.connected_channels[0].send('BOT: (!sf or !startfrom) {file name} {time to start from}')
             await bot.connected_channels[0].send('BOT: !ss {file name} {subtitle delay (optional)}')
