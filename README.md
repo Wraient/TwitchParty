@@ -1,6 +1,6 @@
 # TwitchParty
 
-Youtube Video : https://www.youtube.com/watch?v=JrkE4-beTEk
+Youtube Video : https://www.youtube.com/watch?v=aO0ZvWdiuq4
 
 This scipt uses FFMPEG which is a open source tool to stream videos to your Twitch Channel.
 
