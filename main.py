@@ -6,164 +6,233 @@ import datetime
 import pytz
 from twitchio.ext import commands
 import json
+import re
+import sqlite3
+import sys
+import traceback
+from database_handler import AnimeDatabase
 
-twitch_streamkey = "" # Your Twitch streamkey
-twitch_token = "" # Your Twitch token
-channel_name = "" # Your Twitch username
+username = "" # Your Twitch Username add more usernames in the whitelist list
+streamkey = "" # https://dashboard.twitch.tv/u/YOUR_USERNAME/settings/stream 
+oAuthToken = "" # https://twitchtokengenerator.com/
+script_path=False
+user_timezone = "Asia/Kolkata"
+preset="superfast"
+whitelist = [username, ]
 
+# script_path = "/home/wraient/Documents/Projects/watchParty"
+
+anime_dict={}
+
+def search(msg):
+    global anime_dict
+    anime_dict2={}
+    anime = ""
+    for i in range(len(msg)-1):
+        anime+=msg[i+1]+" "
+
+    print("searching for",anime)
+    
+    with open("./scripts/tmp/query", "w") as query:
+        query.write(anime)
+        print("query wrote")
+
+    os.system("./scripts/anime_list.sh")
+
+    with open('./scripts/tmp/anime_list', 'r') as file:
+        input_data = file.read()
+
+    # Parse the input into a dictionary
+    spliter="NEWLINEFROMHERE "
+    try:
+        for line in input_data.split(spliter):
+            parts = line.split(' ', 1)
+            if line==input_data.split(spliter)[-1]:
+                parts[1]= parts[1][:-len(spliter)]
+            if len(parts) >= 2:
+                anime_id, anime_name = parts[0], parts[1]
+                anime_dict2[len(anime_dict2) + 1] = (anime_id, anime_name)
+        anime_dict = anime_dict2
+        print("anime_dict:",anime_dict)
+    except:
+        print("No anime with that name")
+        return "noanime"
+
+def episode_list(msg):
+    index_selected=int(msg[0][1:])
+
+    anime_dict
+    if index_selected in anime_dict:
+        anime_id, anime_name = anime_dict[index_selected]
+        print(f"The ID of {anime_name} is {anime_id}")
+        with open("./scripts/tmp/anime", "w") as anime_file:
+            anime_file.write(anime_name)
+            print("anime name wrote")
+    else:
+        return False
+
+    with open("./scripts/tmp/id", "w") as id_file:
+        id_file.write(anime_id)
+
+    os.system("./scripts/episode_list.sh")
+
+    return True
+
+def get_link(msg):
+    episode_no=msg[0][1:]
+
+    with open("./scripts/tmp/ep_no", "w") as ep_no_file:
+        ep_no_file.write(episode_no)
+
+    os.system("./scripts/episode_url.sh")
+
+    with open('./scripts/tmp/links', 'r') as file:
+        # Read the contents of the file
+        input_data = file.read()
+
+    # Split the input into lines
+    lines = input_data.split('\n')
+
+    # Extract the first link
+    first_link = None
+    for line in lines:
+        parts = line.split('>')
+        if len(parts) >= 2:
+            link_and_text = parts[1].strip()
+            link_parts = link_and_text.split()
+            first_link = link_parts[0]
+            break
+
+    print("first link:", first_link)
+    return first_link
+
+def extractor(anime_id=False, episode_no=False, anime_name=False):
+    if anime_id:
+        with open("./scripts/tmp/id", "r") as _id:
+            return _id.read()
+    if episode_no:
+        with open("./scripts/tmp/ep_no", "r") as ep_no:
+            return ep_no.read()
+    if anime_name:
+        with open("./scripts/tmp/anime", "r") as a_name:
+            return a_name.read()
+
+def file_inserter(anime_id=False, episode_no=False, anime_name=False):
+    if anime_id:
+        with open("./scripts/tmp/id", "w") as _id:
+            return _id.write(anime_id)
+    if episode_no:
+        with open("./scripts/tmp/ep_no", "w") as ep_no:
+            return ep_no.write(episode_no)
+    if anime_name:
+        with open("./scripts/tmp/anime", "w") as a_name:
+            return a_name.write(anime_name)
+
+def anime_time():
+    with open("--nostat", "r") as result:
+        stderr_content = result.read()
+
+    # Find the last occurrence of out_time_ms
+    out_time_matches = re.findall(r"out_time_ms=(\d+)", stderr_content)
+    if out_time_matches:
+        last_out_time = out_time_matches[-1]
+        out_time_ms = int(last_out_time)
+        out_time_seconds = out_time_ms / 1000000
+        return out_time_seconds     
+    else:
+        return False
+
+def save_anime_timing(initial_time):
+    temp69420 = anime_time() + initial_time
+    if temp69420>30:
+        temp69420-=30
+    if temp69420:
+        db = AnimeDatabase('anime_database.db')
+        db.insert_anime(extractor(anime_id=True), extractor(anime_name=True), int(extractor(episode_no=True)), temp69420+initial_time, nickname=db.get_nickname_by_id(extractor(anime_id=True)))
+        db.conn.close()
+        return temp69420
+
+
+def ensure_path_exists(path):
+    if os.path.isdir(path):
+        # If it's a directory, create it if it doesn't exist
+        if not os.path.exists(path):
+            os.makedirs(path)
+            print(f"Directory created: {path}")
+        else:
+            print(f"Directory already exists: {path}")
+    else:
+        # If it's a file path, get the directory part
+        directory = os.path.dirname(path)
+        # Create the directory if it doesn't exist
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Directory created: {directory}")
+        else:
+            print(f"Directory already exists: {directory}")
+
+    
 class Stream():
     def __init__(self):
-        self.streamkey = twitch_streamkey
-        self.path = os.getcwd()
-        self.file_path = os.getcwd()+"/anime/"
-        self.playing = "" # the file that is playing
-        self.started = "" # the time at which the stream was started
-        self.pre_seek = "0" # amount of time video was seeked before playing
-        self.subtitles = False
-        self.subtitle_delay = "0"
-        self.paused = True
-    
-    def parameter_update(self, parameter_list:list): #(playing, pre_seek, subtitle_delay)
-        if len(parameter_list)==3:
-            self.subtitles=True
-            if parameter_list[-1]!=True:
-                self.subtitle_delay=parameter_list[-1]
-            
-        if len(parameter_list)>=2:
-            self.pre_seek=parameter_list[1]
-        self.playing=parameter_list[0]
-        self.started=time.time()
-            
-    
-    def time_to_seconds(self, timer): #returns seconds in INT
-        time2 = timer.split(":")
-        if len(time2)==3:
-            x = time.strptime(timer,'%H:%M:%S')
-            seconds = datetime.timedelta(hours=x.tm_hour,minutes=x.tm_min,seconds=x.tm_sec).total_seconds()
-            return seconds
-        elif len(time2) ==2:
-            x = time.strptime(timer, "%M:%S")
-            seconds = datetime.timedelta(minutes=x.tm_min,seconds=x.tm_sec).total_seconds()
-            return seconds
+        self.streamkey = streamkey # nowraient1
+        self.input_file=""
+        if script_path:
+            self.path = script_path+"refactor.py"
+            self.file_path = script_path+"/anime/"
         else:
-            return int(timer)
-
+            self.path = os.getcwd()
+            self.file_path = os.getcwd()+"/anime/"
+    
     def kill(self):
-        print("KILLLINGGGGGGGGGGGGGGG")
+        print("Killing Stream.")
         os.system("killall --user $USER  --ignore-case  --signal INT  ffmpeg")
         os.system("pkill ffmpeg")
+        os.system("kill $(pgrep -f ffmpeg)")
     
     def start_base(self, input_file):
-        self.parameter_update([input_file])
-        subprocess.Popen([f"ffmpeg -re -i {input_file} -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
-        return
-
-    def ass_to_srt(self, input_file):
-        subprocess.Popen([f"ffmpeg -i {self.path}/subtitles/{input_file}.ass -map 0 -c:s srt {self.path}/subtitles/{input_file}.srt -y"], shell=True)
+        ffmpeg_cmd = [
+            'ffmpeg', '-re', '-hide_banner', '-i', input_file, '-c:v', 'libx264', '-preset', preset,
+            '-b:v', '3000k', '-maxrate', '3000k', '-progress', '--nostat', '-bufsize', '6000k', '-pix_fmt', 'yuv420p',
+            '-g', '50', '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '44100',
+            '-f', 'flv', f'rtmp://live.twitch.tv/app/{streamkey}'
+        ]
+        subprocess.Popen(ffmpeg_cmd)
     
-    def start(self, input_file):
-        self.parameter_update([input_file])
-        self.start_base(str(self.file_path)+input_file+".*")
-    
-    def start_flv(self, input_file):
-        self.parameter_update([input_file])
-        subprocess.Popen([f"ffmpeg -re -i {str(self.file_path)+input_file} -c copy -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
+    def link_seek_time(self, input_file, seek_to):
+        ffmpeg_cmd = [
+            'ffmpeg', '-re', '-hide_banner', '-ss', seek_to, '-i', input_file, '-c:v', 'libx264', '-preset', preset,
+            '-b:v', '3000k', '-maxrate', '3000k', '-progress', '--nostat', '-bufsize', '6000k', '-pix_fmt', 'yuv420p',
+            '-g', '50', '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '44100',
+            '-f', 'flv', f'rtmp://live.twitch.tv/app/{streamkey}'
+        ]
+        subprocess.Popen(ffmpeg_cmd)
 
-    def start_from(self, input_file:str, seek_to:str):
-        self.parameter_update([input_file, seek_to])
-        # self.started = time.time() - self.time_to_seconds(self.pre_seek)
-
-        subprocess.Popen([f"ffmpeg -re -ss {seek_to} -i {str(self.file_path)+input_file}.* -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
-
-    def encode(self, input_file):
-        subprocess.Popen([f"ffmpeg -i {str(self.file_path)+input_file} -c:v libx264 -preset medium -b:v 3000k -maxrate 3000k -bufsize 6000k -vf \"scale=1280:-1,format=yuv420p\" -g 50 -c:a aac -b:a 128k -ac 2 -ar 44100 {str(self.file_path)+input_file}.flv"], shell=True)
-
-    def start_from_youtube(self, yt_link):
-        yt_source = subprocess.check_output(f"yt-dlp --get-url {yt_link}", shell=True, text=True).split("\n")
-        subprocess.Popen([f"ffmpeg -re -i \"{yt_source[0]}\" -i \"{yt_source[1]}\" -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
-        print(yt_source)
-
-
-    def youtube_start_from(self, yt_link, time_to_start):
-        yt_source = subprocess.check_output(f"yt-dlp --get-url {yt_link}", shell=True, text=True).split("\n")
-        subprocess.Popen([f"ffmpeg -re -ss {time_to_start} -i \"{yt_source[0]}\" -ss {time_to_start} -i \"{yt_source[1]}\"  -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -f flv rtmp://live.twitch.tv/app/{self.streamkey}"], shell=True)
-        print(yt_source)
-
-
-    def start_sub(self, input_file):
-        self.parameter_update([input_file, "0", True])
-        self.ass_to_srt(input_file)
-        subprocess.Popen([f"ffmpeg -re -i {str(self.file_path)+input_file}.mkv -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -vf subtitles={self.path}/subtitles/{input_file}.srt -f flv rtmp://bom01.contribute.live-video.net/app/{self.streamkey}"], shell=True)
-    
-    def start_sub_delay(self, input_file, seek_sub):
-        self.parameter_update([input_file, "0", seek_sub])
-
-        self.ass_to_srt(input_file)
-
-        subprocess.Popen([f"ffmpeg -itsoffset {seek_sub} -i {self.path}/subtitles/{input_file}.srt -c copy {self.path}/subtitles/subtitles_delayed.srt -y"], shell=True)
-        subprocess.Popen([f"ffmpeg -re -i {str(self.file_path)+input_file}.mkv -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -vf subtitles={self.path}/subtitles/subtitles_delayed.srt -f flv rtmp://bom01.contribute.live-video.net/app/{self.streamkey}"], shell=True)
-
-    def delay_sub(self, input_file, seek_sub):
-        self.parameter_update([input_file, "0", seek_sub])
-        self.ass_to_srt(input_file)
-        subprocess.Popen([f"ffmpeg -i {self.path}/subtitles/{input_file}.srt -itsoffset {seek_sub} -c copy output.srt"], shell=True)
-
-    def start_from_with_sub(self, input_file, seek_to, sub_delay):
-        self.parameter_update([input_file, seek_to, sub_delay])
+    def yt_dlp_start(self, yt_link):
+        yt_source = subprocess.check_output(f"yt-dlp --no-warnings --get-url {yt_link}", shell=True, text=True).split("\n")
         
-        self.started = time.time() - self.time_to_seconds(self.pre_seek)
+        ffmpeg_cmd = [
+            'ffmpeg', '-re', '-hide_banner', '-i', yt_source[0], '-i', yt_source[1], '-c:v', 'libx264', '-preset', preset,
+            '-b:v', '3000k', '-maxrate', '3000k', '-progress', '--nostat', '-bufsize', '6000k', '-pix_fmt', 'yuv420p',
+            '-g', '50', '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '44100',
+            '-f', 'flv', f'rtmp://live.twitch.tv/app/{streamkey}'
+        ]
+        
+        subprocess.Popen(ffmpeg_cmd)
 
-        self.ass_to_srt(input_file)
-
-        subprocess.Popen([f"ffmpeg -itsoffset {sub_delay} -i {self.path}/subtitles/{input_file}.srt -c copy {self.path}/subtitles/subtitles_delayed.srt -y"], shell=True)
-
-        subprocess.Popen([f"iconv -f utf-8 -t utf-8 -c {self.path}/subtitles/subtitles_delayed.srt > {self.path}/subtitles/subtitles_delayed.srt"], shell=True) # clean subtitles from non utf-8 characters
-
-        subprocess.Popen([f"srt fixed-timeshift --seconds -{self.time_to_seconds(seek_to)} < {self.path}/subtitles/subtitles_delayed.srt > {self.path}/subtitles/subtitles_fixed.srt -y"], shell=True) # only works when root
-
-        subprocess.Popen([f"ffmpeg -re -ss {seek_to} -i {str(self.file_path)+input_file}.* -c:v libx264 -preset ultrafast -b:v 3000k -maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 -ar 44100 -vf subtitles={self.path}/subtitles/subtitles_fixed.srt -f flv rtmp://bom01.contribute.live-video.net/app/{self.streamkey}"], shell=True)
-
-    def update_json(self):
-        today = datetime.date.today()
-        formatted_date = today.strftime("%d/%m/%Y")
-        time_rn = str(datetime.datetime.now().time())
-        seeker = str(round(time.time()-int(self.started)-10))
-        if int(seeker) < 0:
-            seeker = "0"
-        playing =  str(self.playing)
-        project_data = {
-            "playing":playing,
-            "seeker": seeker,
-            "subtitles" : self.subtitles,
-            "subtitle_delay": self.subtitle_delay,
-            "date":formatted_date,
-            "time":time_rn
-        }
-
-        with open("data.json", "w") as file:
-            json.dump(project_data, file)
-
-
-    def play_from_json(self):
-        with open("data.json", "r") as file:
-            data = json.load(file)
-
-        self.playing = data["playing"] # the file that is playing
-        self.started = str(round(time.time()-int(data["seeker"]))) # the time at which the stream was started
-        self.pre_seek = data["seeker"] # amount of time video was seeked before playing
-        self.subtitles = data["subtitles"]
-        self.subtitle_delay = data["subtitle_delay"]
-
-        if data["subtitles"]:pass
-        self.start_from(self.playing, self.pre_seek)
+        print(yt_source)
 
 
 stream = Stream()
 
 class Bot(commands.Bot):
 
+    ensure_path_exists("./scripts/tmp/query")
+
+    global anime_dict
     def __init__(self):
-        super().__init__(token=twitch_token, prefix='?', initial_channels=[channel_name])
+        super().__init__(token=oAuthToken, prefix='?', initial_channels=[username])
+        # stream.anime_dict={}
+        # self.initial_time = 0
 
     async def event_ready(self):
         await bot.connected_channels[0].send('Bot Landed')
@@ -171,97 +240,165 @@ class Bot(commands.Bot):
         print(f'User id is | {self.user_id}')
 
     async def event_message(self, message):
-        whitelist = [channel_name]
-        msg = message.content.split()
-        # print(msg)
-        if message.echo or (message.author.name not in whitelist):
-            return
+    
+        try:
 
-        if "!start" in msg or "!s" in msg: #start file
-            await bot.connected_channels[0].send('BOT: Opening File!')
-            stream.kill()
-            stream.paused = False
-            stream.start(msg[1])
+            global whitelist
+            msg = message.content.split() # ['this', 'is', 'the', 'message']
+            print(msg)
+            if message.echo or (message.author.name not in whitelist):
+                return
+
+            if "!yt" in msg:
+                stream.kill()
+                stream.yt_dlp_start(msg[1])
+
+            if "!search" in msg:
+                if search(msg) == "noanime":
+                    await bot.connected_channels[0].send(f"No anime with that name was found!")
+                    return
+                await bot.connected_channels[0].send(f"select a anime (#): ")
+                print(anime_dict)
+                for index, (_, anime_name) in anime_dict.items():
+                    print(index, anime_name)
+                    await bot.connected_channels[0].send(f"{index}. {anime_name}")
             
-        elif "!startfrom" in msg or "!sf" in msg: # start from
-            await bot.connected_channels[0].send('BOT: Doing just that!')
-            stream.paused=False
-            stream.kill()
-            stream.start_from(msg[1], msg[2])
+            if "#" in msg[0]:
+                # episode_list(msg)
+                if episode_list(msg):
+                    await bot.connected_channels[0].send('Which episode do you want to watch: ')
+                else:
+                    await bot.connected_channels[0].send('Thats not an option.')
 
-        if "!sstart" in msg or "!ss" in msg: #sub start with delay
-            await bot.connected_channels[0].send('BOT: Opening File with subs!')
-            stream.kill()
-            stream.paused = False
-            if len(msg)==3:
-                stream.start_sub_delay(msg[1], msg[2])
-            else:
-                stream.start_sub(msg[1])
+            if "@" in msg[0]:
+                self.initial_time = 0
+                first_link = get_link(msg)
+                if first_link:
+                    stream.kill()
+                    try:
+                        if msg[1]: # if there is a time stamp 
+                            await bot.connected_channels[0].send(f'Starting {extractor(anime_name=True)} ep {extractor(episode_no=True)} at time {msg[1]}')
+                            stream.link_seek_time(first_link, msg[1])
+                    except:
+                        stream.start_base(first_link)
+                        await bot.connected_channels[0].send(f'Starting {extractor(anime_name=True)} ep {extractor(episode_no=True)} from begining.')
+
+                else:
+                    await bot.connected_channels[0].send('No links found in the file.')
             
-        if "!ssf" in msg: #start wtih sub from {time}
-            await bot.connected_channels[0].send('BOT: Opening File with subs!')
-            stream.kill()
-            stream.paused = False
-            if len(msg)==3:
-                stream.start_from_with_sub(msg[1], msg[2], 0)
-            if len(msg)==4:
-                stream.start_from_with_sub(msg[1], msg[2], msg[3])
+            if "!cp" in msg:
+                self.initial_time = 0
+                db = AnimeDatabase('anime_database.db')
+                db.insert_anime(extractor(anime_id=True), extractor(anime_name=True), int(extractor(episode_no=True))+1, "00:00")
+                db.conn.close()
+                await bot.connected_channels[0].send(f'Marked {extractor(anime_name=True)} episode {extractor(episode_no=True)} completed.')
+                print("@" + str(int(extractor(episode_no=True))+1))
+                first_link = get_link([f"@{int(extractor(episode_no=True))+1}"])
+                print(first_link)
+                if first_link:
+                    stream.kill()
+                    stream.start_base(first_link)
+                else:
+                    await bot.connected_channels[0].send('No links found in the file.')
+
+                
+                first_link = get_link(["@"+str(results[0][2])])
+                print("first_link:", first_link)
+                if first_link:
+                    stream.kill()
+                    stream.link_seek_time(first_link, results[0][3])
+                else:
+                    await bot.connected_channels[0].send('No links found in the file.')
+
+            if '!end' in msg:
+
+                temp69420 = save_anime_timing(self.initial_time)
+                await bot.connected_channels[0].send(f'Saved {extractor(anime_name=True)} ep {extractor(episode_no=True)} time at {temp69420} seconds.')
+
+                self.initial_time = 0
+
+                stream.kill()
+                await bot.connected_channels[0].send('Killing the stream.')
+
+            if '!quit' in msg:
+                stream.kill()
+                await bot.connected_channels[0].send('Goodbye.')
+                sys.exit()
             
-        elif "!yt" in msg: # start youtube
-            await bot.connected_channels[0].send('BOT: Opening Youtube!')
-            stream.kill()
-            stream.paused = True
-            if len(msg)==2:
-                stream.start_from_youtube(msg[1])
-            if len(msg)==3:
-                stream.youtube_start_from(msg[1], msg[2])
+            if "!help" in msg: # help
+                await bot.connected_channels[0].send('BOT: its simple, dummy!')
+                await bot.connected_channels[0].send('BOT: !ping - ping the bot')
+                await bot.connected_channels[0].send('BOT: !search {anime name} - Initiate search')
+                await bot.connected_channels[0].send('BOT: #{index of anime} - Select anime')
+                await bot.connected_channels[0].send('BOT: @{episode number} - Play episode number')
+                await bot.connected_channels[0].send('BOT: !continue {anime name / nickname} - continue anime from where left off last time')
+                await bot.connected_channels[0].send('BOT: !nickname - nickname the current playing anime')
+                await bot.connected_channels[0].send('BOT: !db - show all the animes in the database')
+                await bot.connected_channels[0].send('BOT: !cp - set anime episode to compeleted, start new episode')
+                await bot.connected_channels[0].send('BOT: !yt {youtube link} - start youtube video')
+                await bot.connected_channels[0].send('BOT: !end - end Stream (save the anime name and timing in database)')
+                await bot.connected_channels[0].send('BOT: !quit - end Stream (Without saving in database and bot exit!)')
+                await bot.connected_channels[0].send('BOT: !help - show these messages')
 
-        elif "!pause" in msg or "!p" in msg: #pause
-            await bot.connected_channels[0].send('BOT: Pausing!')
-            random_youtube = ["GvqTJnKA0Bc", "_dmtLLAQawI", "v_oZ9Pe0yRg", "23_mESawEEc", "7YkzC0a1GXo", "3QzT1sq6kCY", "aewbOlGXv6s", "F4tHL8reNCs", "yg6JN7eH4XE", "flgtJUthKkk", "k85mRPqvMbE", "FtE6SV_1wu4", "flgtJUthKkk"]
-            stream.kill()
-            stream.paused = True
-            stream.start_from_youtube("https://www.youtube.com/watch\?v\="+random_youtube[random.randint(0,len(random_youtube)-1)])
+            if '!ping' in msg:
+                await bot.connected_channels[0].send("Pong!")
 
-        elif "!play" in msg: # end stream
-            await bot.connected_channels[0].send('BOT: Playing!')
-            stream.play_from_json()
-            stream.paused = False
-            stream.kill()
+            if "!continue" in msg:
+                
+                # db.search_anime_by_name()
+                db = AnimeDatabase('anime_database.db')
+                # partial_name = '1p'  # Partial name search
+                results = db.search_anime_by_name(msg[1])
+                db.__del__()
+                print("results:",results)
+                
+                file_inserter(anime_id=results[0][0], episode_no=results[0][2], anime_name=results[0][1])
+                print("anime_id:", extractor(anime_id=True))
+                print("anime_name:", extractor(anime_name=True))
+                print("episode_no:", extractor(episode_no=True))
+                anime_time_in_file = results[0][3]
+                if anime_time_in_file=="00:00":
+                    self.initial_time = 0
+                else:
+                    self.initial_time = int(round(float(anime_time_in_file)))
+                await bot.connected_channels[0].send(f'Starting {results[0][1]} episode {results[0][2]} at time ({anime_time_in_file} seconds)') # starting {anime_name} episode {episode_no}
 
-        elif "!end" in msg: # end stream
-            await bot.connected_channels[0].send('BOT: Ending!')
-            print("ending")
-            stream.kill()
+                first_link = get_link(["@"+str(results[0][2])])
+                print("first_link:", first_link)
+                if first_link:
+                    stream.kill()
+                    stream.link_seek_time(first_link, results[0][3])
+                else:
+                    await bot.connected_channels[0].send('No links found in the file.')
 
-        elif "!help" in msg: # help
-            await bot.connected_channels[0].send('BOT: (!start or !s) {file name}')
-            await bot.connected_channels[0].send('BOT: (!sf or !startfrom) {file name} {time to start from}')
-            await bot.connected_channels[0].send('BOT: !ss {file name} {subtitle delay (optional)}')
-            await bot.connected_channels[0].send('BOT: !ssf {file name} {time to start from} {subtitle delay (optional)}')
-            await bot.connected_channels[0].send('BOT: !yt {youtube link}')
-            await bot.connected_channels[0].send('BOT: !pause or !p')
-            await bot.connected_channels[0].send('BOT: !end')
+            if "!db" in msg:
+                await bot.connected_channels[0].send('Animes in the db are')
+                db = AnimeDatabase('anime_database.db')
+                db_data = db.fetch_all_anime()
+                index_db = 0
+                for anime in db_data:
+                    index_db+=1
+                    await bot.connected_channels[0].send(f'{index_db}. {anime[1]} (ep {anime[2]}) time: {anime[3]} Nickname: {anime[4]}')
 
-        elif "!ping" in msg: # ping
-            await bot.connected_channels[0].send("Pong!")
+                db.__del__()
+                    
+            if "!nickname" in msg:
+                # print(msg)
+                db = AnimeDatabase('anime_database.db')
+                db.add_nickname_by_id(extractor(anime_id=True), msg[1])
+                print("database\n",db.fetch_all_anime())
+                db.__del__()
+                # file_inserter(ep_no=)
 
-        elif "!ls" in msg: # list files in ./anime
-            data_list = os.listdir(stream.file_path)
-            for i in data_list:
-                await bot.connected_channels[0].send("BOT: "+i)
-        
-        elif "!quit" in msg: #quit program
-            await bot.connected_channels[0].send("BOT: quiting :((")
-            stream.kill()
-            exit()
-        
+        except Exception as error:
+            print("Some error occured:", error)
+            traceback.print_exc()
 
         message_content = message.content
         print(message.author.name, end=": ")
         print(message_content)
         if message_content[:3]!="BOT":
-            tz_NY = pytz.timezone('Asia/Kolkata')
+            tz_NY = pytz.timezone(user_timezone)
             datetime_NY = datetime.datetime.now(tz_NY)
             current_time = str(datetime_NY.strftime("%H:%M:%S"))
             date_today = str(datetime.date.today())
@@ -269,10 +406,7 @@ class Bot(commands.Bot):
                 logs.write("["+date_today+" "+current_time+"] "+message.author.name+": "+message_content+"\n")
         else:print("bot message")
         
-        if not stream.paused:
-            stream.update_json()
         await self.handle_commands(message)
-
 
     @commands.command()
     async def hello(self, ctx: commands.Context):

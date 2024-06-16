@@ -24,8 +24,11 @@ This scipt uses FFMPEG which is a open source tool to stream videos to your Twit
 
 # Edits required in the script
 
+
+stream key can be obtained at : https://dashboard.twitch.tv/u/YOUR_USERNAME/settings/stream
  1. Enter your Twitch Stream on [line 10](https://github.com/Wraient/TwitchParty/blob/main/main.py#L10)
-  
+
+https://twitchtokengenerator.com/
  2. Enter your Twitch application token on [line 11](https://github.com/Wraient/TwitchParty/blob/main/main.py#L11)
 
  3. Enter your Twitch username on [line 12](https://github.com/Wraient/TwitchParty/blob/main/main.py#L12)
