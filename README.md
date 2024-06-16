@@ -6,6 +6,8 @@ This script uses FFMPEG which is a open source tool to stream videos to your Twi
 
 This script supports searching for any anime, and playing any anime episode you would want. In future, searching for shows feature would be added.
 
+The searching and retriving of anime urls is done using code sections of [ani-cli](https://github.com/pystardust/ani-cli) program
+
 ### The script currently only works in linux environment.
 
 # Pre-Requisits
