@@ -1,8 +1,10 @@
 # TwitchParty
 
-Youtube Video : https://www.youtube.com/watch?v=aO0ZvWdiuq4
+Youtube Video : https://www.youtube.com/watch?v=aO0ZvWdiuq4 (older version)
 
-This scipt uses FFMPEG which is a open source tool to stream videos to your Twitch Channel.
+This script uses FFMPEG which is a open source tool to stream videos to your Twitch Channel.
+
+This script supports searching for any anime, and playing any anime episode you would want. In future, searching for shows feature would be added.
 
 ### The script currently only works in linux environment.
 
@@ -18,20 +20,27 @@ This scipt uses FFMPEG which is a open source tool to stream videos to your Twit
 - twitchio
 
   `pip3 install twitchio`
+  
 - yt-dlp
 
   Install yt-dlp : https://github.com/yt-dlp/yt-dlp/releases
 
 # Edits required in the script
 
+ 1. Enter your **Twitch username** on [line 15](https://github.com/Wraient/TwitchParty/blob/main/main.py#L15)
 
-stream key can be obtained at : https://dashboard.twitch.tv/u/YOUR_USERNAME/settings/stream
- 1. Enter your Twitch Stream on [line 10](https://github.com/Wraient/TwitchParty/blob/main/main.py#L10)
 
-https://twitchtokengenerator.com/
- 2. Enter your Twitch application token on [line 11](https://github.com/Wraient/TwitchParty/blob/main/main.py#L11)
+ 2. **Stream Key**
 
- 3. Enter your Twitch username on [line 12](https://github.com/Wraient/TwitchParty/blob/main/main.py#L12)
+     stream key can be obtained [here](https://dashboard.twitch.tv/u/YOUR_USERNAME/settings/stream)
+    
+     Enter your Twitch Stream Key on [line 16](https://github.com/Wraient/TwitchParty/blob/main/main.py#L16)
 
- 4. If you want to add more channels in the whitelist append channels to list on [line 174 ](https://github.com/Wraient/TwitchParty/blob/main/main.py#L174)
-  
+ 3. **OAuthToken**
+
+    OAuthToken can be obtained [here](https://twitchtokengenerator.com/)
+
+    Enter your Twitch application token on [line 17](https://github.com/Wraient/TwitchParty/blob/main/main.py#L17)
+
+
+ 4. (Optional) If you want to add more channels in the **whitelist** list add it on [line 21](https://github.com/Wraient/TwitchParty/blob/main/main.py#L21)
