@@ -11,9 +11,40 @@ The searching and retriving of anime urls is done using code sections of [ani-cl
 # Installation
 
 ### Linux
+
+<details><summary>Debian</summary>
+  
 ```
-git clone https://github.com/wraient/twitchparty
+git clone https://github.com/wraient/twitchparty --depth=1
 cd ./twitchparty
+sudo apt update && sudo apt upgrade
+pip3 install pytz
+pip3 install twitchio
+pip3 install yt-dlp
+sudo apt-get install ffmpeg
+```
+
+</details>
+
+<details><summary>Arch Linux</summary>
+  
+```
+git clone https://github.com/wraient/twitchparty --depth=1
+cd ./twitchparty
+python -m venv venv
+source ./venv/bin/activate
+pip3 install pytz
+pip3 install twitchio
+sudo pacman -Sy yt-dlp
+sudo pacman -Sy ffmpeg
+```
+</details>
+
+After installing you need to edit the script according to your needs, refer to [Edits required in the script](https://github.com/Wraient/TwitchParty/#edits-required-in-the-script)
+
+After editing, you can run the script with 
+
+```
 python3 main.py
 ```
 
@@ -26,11 +57,15 @@ python3 main.py
   Install FFMPEG : https://ffmpeg.org/download.html
 - pytz
 
-  `pip3 install pytz`
+  ```
+  pip3 install pytz
+  ```
 
 - twitchio
 
-  `pip3 install twitchio`
+  ```
+  pip3 install twitchio
+  ```
   
 - yt-dlp
 
@@ -43,13 +78,13 @@ python3 main.py
 
  2. **Stream Key**
 
-     stream key can be obtained [here](https://dashboard.twitch.tv/u/YOUR_USERNAME/settings/stream)
+     [Stream Key can be obtained here](https://dashboard.twitch.tv/u/YOUR_USERNAME/settings/stream)
     
      Enter your Twitch Stream Key on [line 16](https://github.com/Wraient/TwitchParty/blob/main/main.py#L16)
 
  3. **OAuthToken**
 
-    OAuthToken can be obtained [here](https://twitchtokengenerator.com/)
+    [OAuthToken can be obtained here](https://twitchtokengenerator.com/)
 
     Enter your Twitch application token on [line 17](https://github.com/Wraient/TwitchParty/blob/main/main.py#L17)
 
