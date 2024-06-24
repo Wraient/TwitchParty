@@ -8,6 +8,15 @@ This script supports searching for any anime, and playing any anime episode you 
 
 The searching and retriving of anime urls is done using code sections of [ani-cli](https://github.com/pystardust/ani-cli) program
 
+# Installation
+
+### Linux
+```
+git clone https://github.com/wraient/twitchparty
+cd ./twitchparty
+python3 main.py
+```
+
 ### The script currently only works in linux environment.
 
 # Pre-Requisits
