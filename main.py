@@ -11,7 +11,7 @@ import sqlite3
 import sys
 import traceback
 from database_handler import AnimeDatabase
-
+# test
 username = "" # Your Twitch Username add more usernames in the whitelist list
 streamkey = "" # https://dashboard.twitch.tv/u/YOUR_USERNAME/settings/stream 
 oAuthToken = "" # https://twitchtokengenerator.com/
