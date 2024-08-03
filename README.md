@@ -1,5 +1,7 @@
 # TwitchParty
 
+# Warning: Using this on your twitch account may get you banned from twitch, I recommend using a burner twitch account and adding your main account to the scripts whitelist
+
 Youtube Video : https://www.youtube.com/watch?v=aO0ZvWdiuq4 (older version)
 
 This script uses FFMPEG which is a open source tool to stream videos to your Twitch Channel.
