@@ -71,6 +71,31 @@ python3 main.py
 
   Install yt-dlp : https://github.com/yt-dlp/yt-dlp/releases
 
+# Usage
+
+Once the bot is connected to you twitch channel a "Bot Landed!" Message would be sent by the bot in the chat.
+From there you can 
+
+Watch an anime: 
+  1. Search for an anime with `!search [anime name]`
+  2. Select the anime from the results with `#[index number]`
+  3. Start Any episode you want with `@[episode number]`
+  - Stop episode to play later with `!end`
+  - Mark episode as completed with `!cp`
+  - Quit the bot without any saving in database `!quit`
+  - Add nickname to currently playing anime `!nickname [nickname]`
+
+Watch youtube Video:
+  - Just send `!yt [youtube link]`
+
+Resume an anime
+  - `!continue [anime name / saved nickname ]`
+
+Miscellaneous:
+  - Ping the bot `!ping`
+  - Show watched db `!db`
+  - Ask for help `!help`
+
 # Edits required in the script
 
  1. Enter your **Twitch username** on [line 15](https://github.com/Wraient/TwitchParty/blob/main/main.py#L15)
